@@ -19,11 +19,21 @@ var is_anim_locked : bool = false
 func _ready() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
-func _input(event: InputEvent) -> void:
-	if event is InputEventMouseMotion:
-		rotate_y(deg_to_rad(-event.relative.x*sensitivity_horz))
-		model.rotate_y(deg_to_rad(event.relative.x*sensitivity_horz))
-		camera_mount.rotate_x(deg_to_rad(-event.relative.y*sensitivity_vert))
+func _unhandled_input(event: InputEvent) -> void:
+	# sets the mouse to captured (meaning we can listen for mouse input) when the mouse clicks the screen
+	if event is InputEventMouseButton:
+		Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+	
+	# when the escape key is hit it makes the mouse visible again
+	elif event.is_action_pressed("ui_cancel"):
+		Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+	
+	if Input.get_mouse_mode() == Input.MOUSE_MODE_CAPTURED:
+		if event is InputEventMouseMotion:
+			rotate_y(deg_to_rad(-event.relative.x*sensitivity_horz))
+			model.rotate_y(deg_to_rad(event.relative.x*sensitivity_horz))
+			camera_mount.rotate_x(deg_to_rad(-event.relative.y*sensitivity_vert))
+			camera_mount.rotation.x = clamp(camera_mount.rotation.x, deg_to_rad(-60), deg_to_rad(60))
 
 func _physics_process(delta: float) -> void:
 	
