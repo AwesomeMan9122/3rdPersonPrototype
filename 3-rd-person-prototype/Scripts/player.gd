@@ -1,6 +1,7 @@
 extends CharacterBody3D
 
 @onready var camera_mount: Node3D = $"Camera Mount"
+@onready var camera: Camera3D = $"Camera Mount/SpringArm3D/Camera3D"
 @onready var animation_player: AnimationPlayer = $Model/mixamo_base/AnimationPlayer
 @onready var model: Node3D = $Model
 
@@ -12,6 +13,9 @@ var sprint_speed : float = 5.0
 
 var is_sprinting : bool = false
 var is_anim_locked : bool = false
+
+var last_direction : Vector3 = Vector3.BACK
+var ang_accel : float = 12
 
 @export var sensitivity_horz : float = 0.5
 @export var sensitivity_vert : float = 0.5
@@ -30,9 +34,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	
 	if Input.get_mouse_mode() == Input.MOUSE_MODE_CAPTURED:
 		if event is InputEventMouseMotion:
-			rotate_y(deg_to_rad(-event.relative.x*sensitivity_horz))
-			model.rotate_y(deg_to_rad(event.relative.x*sensitivity_horz))
-			camera_mount.rotate_x(deg_to_rad(-event.relative.y*sensitivity_vert))
+			camera_mount.rotation.y -= deg_to_rad(event.relative.x*sensitivity_horz)
+			#model.rotate_y(deg_to_rad(event.relative.x*sensitivity_horz))
+			camera_mount.rotation.x -= deg_to_rad(event.relative.y*sensitivity_vert)
 			camera_mount.rotation.x = clamp(camera_mount.rotation.x, deg_to_rad(-60), deg_to_rad(60))
 
 func _physics_process(delta: float) -> void:
@@ -64,7 +68,11 @@ func _physics_process(delta: float) -> void:
 	# Get the input direction and handle the movement/deceleration.
 	# As good practice, you should replace UI actions with custom gameplay actions.
 	var input_dir := Input.get_vector("left", "right", "forward", "back")
-	var direction := (transform.basis * Vector3(input_dir.x, 0, input_dir.y)).normalized()
+	var forward := camera.global_basis.z
+	var right := camera.global_basis.x
+	var direction := (forward * input_dir.y + right * input_dir.x).normalized()
+	direction.y = 0.0
+	
 	if direction:
 		if !is_anim_locked: 
 			if is_sprinting:
@@ -74,7 +82,11 @@ func _physics_process(delta: float) -> void:
 				if animation_player.current_animation != "walking":
 					animation_player.play("walking")
 			
-			model.look_at(position + direction)
+			if direction.length() > 0.2:
+				last_direction = direction
+			var target_angle := Vector3.FORWARD.signed_angle_to(last_direction, Vector3.UP)
+			model.global_rotation.y = lerp_angle(model.rotation.y, target_angle, delta * ang_accel)
+			#model.look_at(position + direction)
 		
 		velocity.x = direction.x * SPEED
 		velocity.z = direction.z * SPEED
